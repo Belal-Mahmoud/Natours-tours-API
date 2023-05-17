@@ -83,6 +83,32 @@ const tourSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    startLocation: {
+      // GeoJSON: MongoDB uses to specify geospatial data, and has at least type & coordinates. We could remove it and put it the locations as the 1st location with index 0.
+      type: {
+        type: String,
+        default: 'Point',
+        enum: ['Point'],
+      },
+      coordinates: [Number], // Latidute & Longitude.
+      description: String,
+      address: String,
+    },
+    locations: [
+      // We are creating embeded documents using an array of objects.
+      {
+        type: {
+          type: String,
+          default: 'Point',
+          enum: ['Point'],
+        },
+        coordinates: [Number], // Latidute & Longitude.
+        description: String,
+        address: String,
+        day: Number,
+      },
+    ],
+    guides: [{ type: mongoose.Schema.ObjectId, ref: 'User' }],
   },
   {
     toJSON: { virtuals: true },
