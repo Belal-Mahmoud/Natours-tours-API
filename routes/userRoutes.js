@@ -1,23 +1,26 @@
 const express = require('express');
-const userController = require('../controllers/userController');
+const userController = require('../controllers/userController'); // We're able to use DES here.
 const authController = require('../controllers/authController');
 
 const router = express.Router();
 
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
-
 router.post('/forgotPassword', authController.forgotPassword);
 router.patch('/resetPassword/:token', authController.resetPassword);
 
-router.patch(
-  '/updateMyPassword',
-  authController.protect,
-  authController.updatePassword
-);
+// Protect all routes after this MW.
+router.use(authController.protect);
 
-router.patch('/updateMe', authController.protect, userController.updateMe);
-router.delete('/deleteMe', authController.protect, userController.deleteMe);
+router.patch('/updateMyPassword', authController.updatePassword);
+
+router.get('/me', userController.getMe, userController.getUser);
+
+router.patch('/updateMe', userController.updateMe);
+router.delete('/deleteMe', userController.deleteMe);
+
+// Only 'admin' has access to use after this MW.
+router.use(authController.restrictTo('admin'));
 
 // Those endpoints 100% fit that 'REST' philosophy, and adminstrator is going to use them.
 router
