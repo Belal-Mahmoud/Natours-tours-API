@@ -56,14 +56,12 @@ const sendErrorProd = (err, res) => {
 
 // This is the error handling MW.
 module.exports = (err, req, res, next) => {
-  //   console.log(err.stack); // Stack Trace: show us where the error hapenned.
-
   err.statusCode = err.statusCode || 500; // 500 means internal server error.
   err.status = err.status || 'error';
 
   if (process.env.NODE_ENV === 'development') {
     sendErrorDev(err, res);
-  } else {
+  } /*else if (process.env.NODE_ENV === 'production')*/ else {
     let error = { ...err }; // We have defined this hard copy to not change this function argument (err).
 
     if (error.kind === 'ObjectId') error = handleCastErrorDB(error);
@@ -71,14 +69,6 @@ module.exports = (err, req, res, next) => {
     if (error.errors) error = handleValidatoinErrorDB(error);
     if (error.name === 'JsonWebTokenError') error = handleJWTError();
     if (error.name === 'TokenExpiredError') error = handleJWTExpiredError();
-
-    console.log(
-      '*********************************************************************************'
-    );
-    console.log(error);
-    console.log(
-      '*********************************************************************************'
-    );
 
     sendErrorProd(error, res);
   }

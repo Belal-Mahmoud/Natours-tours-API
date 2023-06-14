@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { promisify } = require('util');
+const { promisify } = require('util'); // Using "promisify" from "util" to make a function return promise.
 const jwt = require('jsonwebtoken');
 const User = require('./../models/userModel');
 const catchAsync = require('./../utils/catchAsync');
@@ -20,12 +20,14 @@ const createSendToken = (user, statusCode, res) => {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
     ),
-    httpOnly: true,
+    //secure: true, // The cookie will be sent only on an encrypted connection, Only using HTTPS.
+    httpOnly: true, // The cookie can't be accessed or modified in any way by the browser, so the browser will only store the cookie and then send it automatically along with every request.
   };
   if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
 
   res.cookie('jwt', token, cookieOptions);
 
+  // Remove password from output.
   user.password = undefined;
 
   res.status(statusCode).json({
@@ -56,10 +58,10 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide email and password!', 400)); // 400 stands for bad request.
 
   // 2) Check if user exists & password is correct.
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email }).select('+password'); // Here we are finding user according to his "email", and adding "password" using "+" before it because we set its "select" as "false" in the "userSchema".
 
   if (!user || !(await user.correctPassword(password, user.password)))
-    return next(new AppError('Incorrect email or password!', 401));
+    return next(new AppError('Incorrect email or password!', 401)); // 401 stands for unauthorized, and here we are able to check (tour & password) separatly but it will give a potential attacker information whether the email or the password is incorrect.
 
   // 3) If everything ok, send token to client.
   createSendToken(user, 200, res);
@@ -84,11 +86,10 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // 2) Verification token.
   const decodeded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
-  // console.log(decodeded);
 
   // 3) Check if user still exists.
-  const freshUser = await User.findById(decodeded.id);
-  if (!freshUser)
+  const user = await User.findById(decodeded.id);
+  if (!user)
     return next(
       new AppError(
         'The user belonging to this token does no longer exist.',
@@ -97,15 +98,15 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
 
   // 4) check if user changed password after the token was issued.
-  if (freshUser.changedPasswordAfter(decodeded.iat)) {
-    // iat(issued at).
+  if (user.changedPasswordAfter(decodeded.iat)) {
+    // iat stands for (issued at).
     return next(
       new AppError('User recently changed password, Please log in again.', 401)
     );
   }
 
   // GRANT ACCESS TO PROTECTED ROUTE.
-  req.user = freshUser;
+  req.user = user; // To put the user data on a request.
   next();
 });
 
@@ -129,7 +130,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
   // 2) Generate the random reset token.
   const resetToken = user.createPasswordResetToken();
-  await user.save({ validateBeforeSave: false });
+  await user.save({ validateBeforeSave: false }); // Used to save the new token and its expire date that generated from this function "createPasswordResetToken()" and have set it 'validateBeforeSave: false' to not run any validator.
 
   // 3) Send it to user's E-mail.
   const resetURL = `${req.protocol}://${req.get(
@@ -139,7 +140,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const message = `Forgot your password? Submit a PATCH request with your new password and password confirm to: ${resetURL}.\nIf you didn't forgot your password, please ignore this email.`;
 
   try {
-    // We are using "try & catch" to handle any error caused by "sendEmail".
+    // We are using "try & catch" to handle any error using "sendEmail".
     await sendEmail({
       email: user.email,
       subject: 'Your password reset token (Valid For 10 min.',
@@ -185,7 +186,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   await user.save();
 
   // 3) Update changedPasswordAt property.
-  // There is a pre MW doing it automatically.
+  // There is a pre MW doing it automatically in "userModel".
 
   // 4) Log the user in, send JWT.
   createSendToken(user, 200, res);

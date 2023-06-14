@@ -9,8 +9,7 @@ router.post('/login', authController.login);
 router.post('/forgotPassword', authController.forgotPassword);
 router.patch('/resetPassword/:token', authController.resetPassword);
 
-// Protect all routes after this MW.
-router.use(authController.protect);
+router.use(authController.protect); // Protect all routes after this MW.
 
 router.patch('/updateMyPassword', authController.updatePassword);
 
@@ -19,8 +18,7 @@ router.get('/me', userController.getMe, userController.getUser);
 router.patch('/updateMe', userController.updateMe);
 router.delete('/deleteMe', userController.deleteMe);
 
-// Only 'admin' has access to use after this MW.
-router.use(authController.restrictTo('admin'));
+router.use(authController.restrictTo('admin')); // Only 'admin' has access to use after this MW.
 
 // Those endpoints 100% fit that 'REST' philosophy, and adminstrator is going to use them.
 router

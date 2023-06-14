@@ -1,10 +1,10 @@
-const express = require('express');
+const express = require('express'); // This here is a function.
 const morgan = require('morgan'); // Is a 3rd party middleware module & its very popular & makes development life easier.
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
-const hpp = require('hpp');
+const hpp = require('hpp'); // Stands for HTTP parameter pollution.
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -13,17 +13,17 @@ const userRouter = require('./routes/userRoutes');
 const reviewRouter = require('./routes/reviewRoutes');
 const route = '/api/v1';
 
-const app = express();
+const app = express(); // The function upon calling will add a bunch of methods to our app variable here.
 
 // 1) GLOBAL Middlewares.
 
 // Set security HTTP headers.
-app.use(helmet());
+app.use(helmet()); // We are calling the function here cause it gonna call the function that's gonna be sitting here until it's call.
 
 // Development logging.
 if (process.env.NODE_ENV === 'development') {
   console.log(process.env.NODE_ENV);
-  app.use(morgan('dev'));
+  app.use(morgan('dev')); // Log to the terminal request log info.
 }
 
 // Limit requests from the same IP.
@@ -36,17 +36,18 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // Body parser, reading data from body into req.body
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '10kb' })); // This is a middleware which is a function that can modify incoming request data, we limit it to 10kilo bytes.
 
 //Data snitization against NoSQL query injection.
-app.use(mongoSanitize());
+app.use(mongoSanitize()); // It's to look at the request body, request query string, and req.params and will filter out all of the dollar sign and dots "Remove mongoDB injections".
 
 //Data snitization against XSS.
-app.use(xss());
+app.use(xss()); // This will then clean any user input from malicious HTML code "To not inject HTML mailcious code with JS attached to it".
 
 // Prevent parameter pollution: manages problems that comes from the URL duplicated params like having 2sorts.
 app.use(
   hpp({
+    // To make certain params to be duplicated.
     whitelist: [
       'duration',
       'ratingsQuantity',
@@ -59,7 +60,7 @@ app.use(
 );
 
 // Serving static files.
-app.use(express.static(`${__dirname}/public`));
+app.use(express.static(`${__dirname}/public`)); // This is to get access to the file that are setting in our FS that we want to access. So, now we have access to all the files inside "Public" folder.
 
 // Test midlleware.
 app.use((req, res, next) => {
@@ -69,15 +70,19 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(`${route}/tours`, tourRouter);
+app.use(`${route}/tours`, tourRouter); // This is a middleware that will execute the "Mounting Router" which is using "tourRouter" router instead of using "app.use" router.
+
 app.use(`${route}/users`, userRouter);
+
 app.use(`${route}/reviews`, reviewRouter);
 
 app.all('*', (req, res, next) => {
-  next(new AppError(`Can't find ${req.originalUrl} in this server!!!`, 404));
+  // This MW is working for all 'CRUD' operators that we have built, and '*' is to work with any URL that is passed, and this is to handle a response to any URL that passed in the server in case that the URL is not one of the above "exist on the server".
+
+  next(new AppError(`Can't find ${req.originalUrl} in this server!!!`, 404)); // Whenever 'next' function receives an argument, no matter what it is, Express will automatically know that there was an error. So, it assume that whatever we pass into 'next' is gonna be an error. And will skip all other MWs in the stack and go straight to "Error handling MW".
 });
 
 // Error handling MW.
-app.use(globalErrorHandler);
+app.use(globalErrorHandler); // errController.
 
 module.exports = app;

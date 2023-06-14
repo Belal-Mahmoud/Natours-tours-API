@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
-const slugify = require('slugify');
+const slugify = require('slugify'); // Slug is a string that we can put in the URL, usually based on a string;
 const validator = require('validator');
 
 const tourSchema = new mongoose.Schema(
   {
+    // 1st obj is the schema definition.
     name: {
       type: String,
       required: [true, 'A tour must have a name.'],
@@ -17,6 +18,7 @@ const tourSchema = new mongoose.Schema(
         10,
         'A tour name must have more or equal than 10 characters.',
       ],
+      // validate: [validator.isAlpha, 'Tour name must only contain characters'], // This function from 'validator' package.
     },
     slug: String,
     duration: {
@@ -40,6 +42,7 @@ const tourSchema = new mongoose.Schema(
       default: 4.5,
       min: [1, 'Rating must be above 1.0'],
       max: [5, 'Rating must be below 5.0'],
+      set: (val) => Math.round(val * 10) / 10, // 4.66666666667 => 46.6666666667 => 47 => 4.7 & Setter runs every time its field recieves value.
     },
     ratingsQuantity: {
       type: Number,
@@ -53,6 +56,7 @@ const tourSchema = new mongoose.Schema(
       type: Number,
       validate: {
         validator: function (val) {
+          // This only works on CREATE & SAVE!
           return val < this.price;
         },
         message: 'Discount price ({VALUE}) should be below regular price.',
@@ -76,9 +80,9 @@ const tourSchema = new mongoose.Schema(
     createdAt: {
       type: Date,
       default: Date.now(),
-      select: false,
+      select: false, // To hide sensitive data from the users.
     },
-    startDates: [Date],
+    startDates: [Date], // JS able to recieve it as string then convert it to Date.
     secretTour: {
       type: Boolean,
       default: false,
@@ -108,39 +112,48 @@ const tourSchema = new mongoose.Schema(
         day: Number,
       },
     ],
-    guides: [{ type: mongoose.Schema.ObjectId, ref: 'User' }],
+    //guides: Array, // Used for embeding users to tours
+    guides: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User', // The name of the model.,
+      },
+    ],
   },
   {
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    // 2nd obj is the schema options.
+    toJSON: { virtuals: true }, // When the data outputted as JSON we want virtuals to be true "to be part of the output".
+    toObject: { virtuals: true }, // When the data outputted as OBJECT we want virtuals to be true "to be part of the output".
   }
 );
-
-tourSchema.index({ price: 1, ratingsAverage: -1 });
+tourSchema.index({ price: 1, ratingsAverage: -1 }); // Compound index.
 tourSchema.index({ slug: 1 });
+tourSchema.index({ startLocation: '2dsphere' }); // We did it in order to do "tours-within" Route, And this tell MongoDB that location here should be indexed to a 2D sphere.
 
 tourSchema.virtual('durationWeeks').get(function () {
+  // To create attributes that not stored in the DB, we have used regular function to have access to 'this' keyword "It's not exist in the arrow function". We can not use 'virtual' property in query
   return this.duration / 7;
 });
 
+// Virtual Populate.
 tourSchema.virtual('reviews', {
   ref: 'Review',
-  foreignField: 'tour',
-  localField: '_id',
+  foreignField: 'tour', // The name of the field that stores the id.
+  localField: '_id', // The name of the id property.
 });
 
 // DOCUMENT MIDDLEWARE: runs before .save() & .create(). So, it is not gonna run before "insertMany()".
-tourSchema.pre('save', function (next) {
+tourSchema.pre('save' /* 'save' is hook. */, function (next) {
+  // console.log(this); // "This" keyword gives us access to the current document that is being processed.
   this.slug = slugify(this.name, { lower: true });
-
   next();
 });
 
 // QUERY MIDDLEWARE
 tourSchema.pre(/^find/, function (next) {
   this.find({ secretTour: { $ne: true } });
-  this.start = Date.now();
 
+  this.start = Date.now();
   next();
 });
 
@@ -155,16 +168,16 @@ tourSchema.pre(/^find/, function (next) {
 
 tourSchema.post(/^find/, function (doc, next) {
   console.log(`Query took ${Date.now() - this.start} milliseconds`);
-
   next();
 });
 
 // AGGREGATION MIDDLEWARE:
-tourSchema.pre('aggregate', function (next) {
-  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
-  console.log(this.pipeline());
-  next();
-});
+// We have ignore it to use "$geoNear" as the 1st stage, till handle it later.
+// tourSchema.pre('aggregate', function (next) {
+//   this.pipeline().unshift({ $match: { secretTour: { $ne: true } } }); //Pipeline is an array, so we have used 'unshift' to add an element at the beginning of the array.
+//   console.log(this.pipeline()); // "This" keyword gives us access to the aggregation.
+//   next();
+// });
 
 const Tour = mongoose.model('Tour', tourSchema);
 
