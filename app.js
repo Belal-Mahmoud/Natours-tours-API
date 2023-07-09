@@ -11,7 +11,7 @@ const globalErrorHandler = require('./controllers/errorController');
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
 const reviewRouter = require('./routes/reviewRoutes');
-const route = '/api/v1';
+const baseURL = '/api/v1';
 
 const app = express(); // The function upon calling will add a bunch of methods to our app variable here.
 
@@ -70,11 +70,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(`${route}/tours`, tourRouter); // This is a middleware that will execute the "Mounting Router" which is using "tourRouter" router instead of using "app.use" router.
-
-app.use(`${route}/users`, userRouter);
-
-app.use(`${route}/reviews`, reviewRouter);
+// The following is a middleware that will execute the "Mounting Router" which is using "tourRouter" router instead of using "app.use" router.
+app.use(`${baseURL}/tours`, tourRouter);
+app.use(`${baseURL}/users`, userRouter);
+app.use(`${baseURL}/reviews`, reviewRouter);
 
 app.all('*', (req, res, next) => {
   // This MW is working for all 'CRUD' operators that we have built, and '*' is to work with any URL that is passed, and this is to handle a response to any URL that passed in the server in case that the URL is not one of the above "exist on the server".
