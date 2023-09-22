@@ -25,16 +25,22 @@ const handleJWTError = () =>
 const handleJWTExpiredError = () =>
   new AppError('Your token has expired, Please log in again!', 401);
 
-const sendErrorDev = (err, res) => {
-  res.status(err.statusCode).json({
-    error: err,
-    status: err.status,
-    message: err.message,
-    stack: err.stack,
-  });
+const sendErrorDev = (err, req, res) => {
+  if(req.originalURL.startsWith('/api')) {
+    // A) API
+    return res.status(err.statusCode).json({
+      error: err,
+      status: err.status,
+      message: err.message,
+      stack: err.stack,
+    });
+  }
+    // B) Website
+    console.error('Error 💥', err);
+    return res.status(err.statusCode).json({message: err.message});
 };
 
-const sendErrorProd = (err, res) => {
+const sendErrorProd = (err, req, res) => {
   if (err.isOperational) {
     // Operational, trusted error: Send message to the client, and this error that we are handled.
     res.status(err.statusCode).json({
@@ -60,9 +66,10 @@ module.exports = (err, req, res, next) => {
   err.status = err.status || 'error';
 
   if (process.env.NODE_ENV === 'development') {
-    sendErrorDev(err, res);
+    sendErrorDev(err, req, res);
   } /*else if (process.env.NODE_ENV === 'production')*/ else {
     let error = { ...err }; // We have defined this hard copy to not change this function argument (err).
+    error.message = err.message;
 
     if (error.kind === 'ObjectId') error = handleCastErrorDB(error);
     if (error.code === 11000) error = handleDuplicateFieldsDB(error);
@@ -70,6 +77,6 @@ module.exports = (err, req, res, next) => {
     if (error.name === 'JsonWebTokenError') error = handleJWTError();
     if (error.name === 'TokenExpiredError') error = handleJWTExpiredError();
 
-    sendErrorProd(error, res);
+    sendErrorProd(error, req, res);
   }
 };

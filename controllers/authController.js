@@ -69,6 +69,14 @@ exports.login = catchAsync(async (req, res, next) => {
   const correct = await user.correctPassword(password, user.password);
 });
 
+exports.logout = (req, res) => {
+  res.cookie('jwt', 'Loggedout', {
+    expires: new Date.now + 10 * 1000, // To expire after 10seconds.
+    httpOnly: true
+  });
+  res.status(200).json({status: 'seccess'});
+};
+
 exports.protect = catchAsync(async (req, res, next) => {
   // 1) Getting token and check if it's exist.
   let token;
@@ -77,6 +85,8 @@ exports.protect = catchAsync(async (req, res, next) => {
     req.headers.authorization.startsWith('Bearer')
   ) {
     token = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies.jwt) {
+    token = req.cookies.jwt
   }
 
   if (!token)
@@ -88,34 +98,66 @@ exports.protect = catchAsync(async (req, res, next) => {
   const decodeded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
   // 3) Check if user still exists.
-  const user = await User.findById(decodeded.id);
-  if (!user)
+  const currentUser = await User.findById(decodeded.id);
+  if (!currentUser)
     return next(
       new AppError(
         'The user belonging to this token does no longer exist.',
         401
       )
     );
+  // console.log(currentUser, currentUser.id);
 
   // 4) check if user changed password after the token was issued.
-  if (user.changedPasswordAfter(decodeded.iat)) {
-    // iat stands for (issued at).
+  if (currentUser.changedPasswordAfter(decodeded.iat)) {
+    // iat(issued at).
     return next(
       new AppError('User recently changed password, Please log in again.', 401)
     );
   }
 
   // GRANT ACCESS TO PROTECTED ROUTE.
-  req.user = user; // To put the user data on a request.
+  req.user = currentUser; // To put the user data on a request.
+  req.locals.user = currentUser;
   next();
 });
+
+// Only for rendered pages, no errors!
+exports.isLoggedIn = async (req, res, next) => {
+ if (req.cookies.jwt) {
+  try{
+    // 1) Verify Token.
+    const decodeded = await promisify(jwt.verify)(req.cookies.jwt /* The Token */, process.env.JWT_SECRET);
+    // console.log(decodeded);
+
+    // 2) Check if user still exists.
+    const currentUser = await User.findById(decodeded.id);
+    if (!currentUser)
+      return next();
+    // console.log(currentUser, currentUser.id);
+
+    // 3) check if current user changed password after the token was issued.
+    if (currentUser.changedPasswordAfter(decodeded.iat)) {
+      // iat(issued at).
+      return next();
+    }
+
+    // There Is A LOGGED IN User.
+    req.locals.user = currentUser; // Using "Locals" to access this user in our template (PUG).
+    return next();
+  } catch(err) {
+    return next();
+  }
+}
+  next();
+};
 
 exports.restrictTo = (...role) => {
   // role = ['admin', 'lead-guide']
   return (req, res, next) => {
     if (!role.includes(req.user.role))
       return next(
-        new AppError('You do not have permission to perform this action!', 403) // 403 means forbidden.
+        new AppError('You do not have permission to perform this action!', 403)
       );
 
     next();
