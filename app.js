@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express'); // This here is a function.
+const cors = require('cors');
 const morgan = require('morgan'); // Is a 3rd party middleware module & its very popular & makes development life easier.
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
@@ -16,6 +17,7 @@ const reviewRouter = require('./routes/reviewRoutes');
 const baseURL = '/api/v1';
 
 const app = express(); // The function upon calling will add a bunch of methods to our app variable here.
+app.use(cors());
 
 // 1) GLOBAL Middlewares.
 
