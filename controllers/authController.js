@@ -65,8 +65,6 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // 3) If everything ok, send token to client.
   createSendToken(user, 200, res);
-
-  const correct = await user.correctPassword(password, user.password);
 });
 
 exports.logout = (req, res) => {
